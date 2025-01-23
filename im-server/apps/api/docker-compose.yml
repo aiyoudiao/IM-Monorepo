@@ -1,0 +1,18 @@
+services:
+
+  im_redis:
+    image: redis:alpine
+    container_name: im-nest-redis
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - '${REDIS_PORT}:6379'
+    command: >
+      --requirepass ${REDIS_PASSWORD}
+    networks:
+      - im_net
+
+networks:
+  im_net:
+    name: im_net
