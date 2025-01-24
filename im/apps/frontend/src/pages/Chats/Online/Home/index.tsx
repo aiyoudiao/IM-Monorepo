@@ -7,7 +7,8 @@ import {
   Welcome,
   useXAgent,
   useXChat,
-  AIInput
+  AIInput,
+  BubbleProps
 } from '@ant-design/x';
 import { io } from 'socket.io-client';
 import { createStyles } from 'antd-style';
@@ -25,8 +26,9 @@ import {
   ShareAltOutlined,
   SmileOutlined,
 } from '@ant-design/icons';
-import { Badge, Button, type GetProp, Space } from 'antd';
+import { Badge, Button, type GetProp, Space, Typography } from 'antd';
 import { socketService } from '@/services/socketService';
+import RichSender from '@/pages/Demo/components/RichTextArea';
 
 const renderTitle = (icon: React.ReactElement, title: string) => (
   <Space align="start">
@@ -196,35 +198,7 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
 
 const Independent: React.FC = () => {
 
-  useEffect(() => {
 
-    socketService.connectWithAuthToken('token');
-
-    socketService.subscribeConnect(() => {
-      console.log('Connected to WebSocket server');
-      socketService.joinRoom({ room: 'room1', username: 'Alice' })
-    })
-
-    socketService.subscribeDisConnect(() => {
-      console.log('Disconnected from server');
-    })
-
-    socketService.subscribeToMessages((data) => {
-      console.log('Received message:', data);
-    })
-
-
-    setTimeout(() => {
-      console.log('message ---> ', { room: 'room1', username: 'Alice', message: 'Hello, everyone!' })
-      socketService.sendMessage({ room: 'room1', username: 'Alice', message: 'Hello, everyone!' });
-    }, 5 * 1000)
-
-    setTimeout(() => {
-      console.log('leaveRoom ---> ', { room: 'room1', username: 'Alice' })
-      socketService.leaveRoom({ room: 'room1', username: 'Alice' });
-    },15*1000)
-
-  }, [])
 
   // ==================== Style ====================
   const { styles } = useStyle();
@@ -244,13 +218,12 @@ const Independent: React.FC = () => {
 
   // ==================== Runtime ====================
   const [agent] = useXAgent({
-    request: async ({ message }, { onSuccess }) => {
+    request: async ({ messages, message }, { onSuccess, onUpdate, onError }) => {
       onSuccess(`Mock success return. You said: ${message}`);
-
     },
   });
 
-  const { onRequest, messages, setMessages } = useXChat({
+  const { onRequest, messages, setMessages, parsedMessages } = useXChat({
     agent,
   });
 
@@ -262,6 +235,7 @@ const Independent: React.FC = () => {
 
   // ==================== Event ====================
   const onSubmit = (nextContent: string) => {
+    console.log('')
     if (!nextContent) return;
     onRequest(nextContent);
     socketService.sendMessage({ room: 'room1', username: 'Alice', message: nextContent });
@@ -321,11 +295,19 @@ const Independent: React.FC = () => {
     </Space>
   );
 
+  const renderMarkdown: BubbleProps['messageRender'] = (content) => (
+    <Typography>
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: used in demo */}
+      <div dangerouslySetInnerHTML={{ __html: content }} />
+    </Typography>
+  );
+
   const items: GetProp<typeof Bubble.List, 'items'> = messages.map(({ id, message, status }) => ({
     key: id,
     loading: status === 'loading',
     role: status === 'local' ? 'local' : 'ai',
     content: message,
+    messageRender: renderMarkdown
   }));
 
   const attachmentsNode = (
@@ -373,6 +355,38 @@ const Independent: React.FC = () => {
     </div>
   );
 
+  useEffect(() => {
+
+    socketService.connectWithAuthToken('token');
+
+    socketService.subscribeConnect(() => {
+      console.log('Connected to WebSocket server');
+      socketService.joinRoom({ room: 'room1', username: 'Alice' })
+    })
+
+    socketService.subscribeDisConnect(() => {
+      console.log('Disconnected from server');
+    })
+
+    socketService.subscribeToMessages((data) => {
+      console.log('Received message:', data);
+      // 有消息就设置
+      setMessages(prevMessages => [...prevMessages, { id: Date.now(), message: data.message, status: 'local' }]);
+    })
+
+
+    setTimeout(() => {
+      console.log('message ---> ', { room: 'room1', username: 'Alice', message: 'Hello, everyone!' })
+      socketService.sendMessage({ room: 'room1', username: 'Alice', message: 'Hello, everyone!' });
+    }, 5 * 1000)
+
+    setTimeout(() => {
+      console.log('leaveRoom ---> ', { room: 'room1', username: 'Alice' })
+      socketService.leaveRoom({ room: 'room1', username: 'Alice' });
+    },15*1000)
+
+  }, [])
+
   // ==================== Render =================
   return (
     <div className={styles.layout}>
@@ -406,11 +420,29 @@ const Independent: React.FC = () => {
         {/* 🌟 提示词 */}
         <Prompts items={senderPromptsItems} onItemClick={onPromptsItemClick} />
         {/* 🌟 输入框 */}
-        <Sender
+
+
+        {/* <Sender
           value={content}
           header={senderHeader}
           onSubmit={onSubmit}
           onChange={setContent}
+          prefix={attachmentsNode}
+          loading={agent.isRequesting()}
+          className={styles.sender}
+        /> */}
+        <RichSender
+          value={content}
+          header={senderHeader}
+          onSubmit={(v) => {
+            debugger;
+            onSubmit(v);
+
+          }}
+          onChange={(value) => {
+            debugger;
+            setContent(value)
+          }}
           prefix={attachmentsNode}
           loading={agent.isRequesting()}
           className={styles.sender}

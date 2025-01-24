@@ -18,5 +18,11 @@ export default {
       component: './Chats/Online/Home',
       exact: true,
     },
+    {
+      path: '/chats/demo',
+      name: '聊天Demo',
+      component: './Demo',
+      exact: true,
+    },
   ],
 };
