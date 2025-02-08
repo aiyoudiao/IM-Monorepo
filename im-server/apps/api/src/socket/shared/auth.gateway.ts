@@ -2,6 +2,7 @@ import type {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import type { Socket } from 'socket.io';
 import { OnEvent } from '@nestjs/event-emitter';
 import { WebSocketServer } from '@nestjs/websockets';
@@ -51,17 +52,14 @@ export function createAuthGateway(
 
     // 当客户端连接时触发
     async handleConnection(client: Socket) {
+      debugger;
       console.log(`Client connected: ${client.id}`); // 打印连接的客户端 ID
-      // console.log('client connection ', client);
-      // const token =
-      //   client.handshake.query.token ||
-      //   client.handshake.headers.authorization ||
-      //   client.handshake.headers.Authorization;
-      // if (!token) return this.authFailed(client);
-
-      // if (!(await this.authToken(token as string)))
-      //   return this.authFailed(client);
-
+      // 开始鉴权，如果鉴权失败，则断开连接
+      const { token } = client.handshake?.auth || {};
+      if (!token) return this.authFailed(client);
+      if (!(await this.authToken(token as string)))
+        return this.authFailed(client);
+      // 鉴权权通过，记录 socket 与 token 的映射
       super.handleConnect(client);
 
       const sid = client.id;
